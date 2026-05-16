@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Subject extends Model
 {
-    protected $fillable = ['name', 'unique_subject_id','board_id'];
+    protected $fillable = ['name', 'unique_subject_id','board_id','grade_id'];
 
     protected static function boot()
     {
