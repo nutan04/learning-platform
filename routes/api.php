@@ -92,6 +92,7 @@ Route::prefix('child')->group(function () {
     Route::get('{childId}/screen-time',[ChildController::class, 'getScreenTime']);
     Route::put('{childId}/screen-time',[ChildController::class, 'updateScreenTime']);
     Route::delete('/child/{id}',[ChildController::class, 'destroy']);
+    Route::get('{id}',[ChildController::class, 'showDetails']);
     Route::post('{childId}/parent-mode/unlock', [ParentPinController::class, 'unlock']);
     Route::get('{childId}/usage-chart',[ChildController::class, 'usageChart']);
     Route::get('{childId}/performance-chart',[ChildController::class, 'performanceChart']);

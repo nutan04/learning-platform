@@ -473,5 +473,13 @@ class ChildController extends Controller
             'Parent_PW' => $exists_parent_pw
         ]);
     }
+    public function showDetails($id){
+        $child = Child::findOrFail($id);
+        $linkCode = ChildLinkCode::where('child_id',$id)->first();
+        return response()->json([
+            'child' => $child,
+            'childLinkCode' => $linkCode ? $linkCode->code : null
+        ]);
+    }
 
 }
