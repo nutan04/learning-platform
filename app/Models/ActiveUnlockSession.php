@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Psy\Util\Str;
+use Illuminate\Support\Str;
 
 class ActiveUnlockSession extends Model
 {
-   public $incrementing = false;
+    public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [
@@ -17,12 +18,19 @@ class ActiveUnlockSession extends Model
         'end_time',
     ];
 
+    protected $casts = [
+        'start_time' => 'datetime',
+        'end_time' => 'datetime',
+    ];
+
     protected static function boot()
     {
         parent::boot();
 
         static::creating(function ($model) {
-            $model->id = (string) Str::uuid();
+            if (!$model->id) {
+                $model->id = (string) Str::uuid();
+            }
         });
     }
 }

@@ -10,6 +10,7 @@ use App\Models\QuizSession;
 use App\Models\ScreenTimeSetting;
 use Illuminate\Http\Request;
 use App\Models\GlobalPolicy;
+use App\Services\UnlockSessionService;
 
 class QuizController extends Controller
 {
@@ -82,7 +83,7 @@ class QuizController extends Controller
         ]);
     }
 
-    public function complete($sessionId)
+    public function complete($sessionId, UnlockSessionService $unlockSessions)
     {
         $session = QuizSession::findOrFail($sessionId);
 
@@ -112,6 +113,8 @@ class QuizController extends Controller
         if ($passed) {
             ScreenTimeSetting::where('child_id', $session->child_id)
                 ->increment('used_unlocks_today');
+
+            $unlockSessions->start($session->child_id);
 
             return response()->json([
                 'success' => true,

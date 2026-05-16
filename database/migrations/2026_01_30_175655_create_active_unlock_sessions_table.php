@@ -11,24 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-       Schema::create('active_unlock_sessions', function (Blueprint $table) {
+        if (Schema::hasTable('active_unlock_sessions')) {
+            return;
+        }
+
+        Schema::create('active_unlock_sessions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-
-            // relation
             $table->uuid('child_id');
-
-            // unlock window
-            $table->timestamp('start_time');
-            $table->timestamp('end_time');
-
-            // audit
+            $table->dateTime('start_time');
+            $table->dateTime('end_time');
             $table->timestamps();
 
-            // foreign key
             $table->foreign('child_id')
-                  ->references('id')
-                  ->on('children')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('children')
+                ->onDelete('cascade');
         });
     }
 

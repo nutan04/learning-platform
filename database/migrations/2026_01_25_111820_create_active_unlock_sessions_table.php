@@ -17,9 +17,9 @@ return new class extends Migration
             // relation
             $table->uuid('child_id');
 
-            // unlock window
-            $table->timestamp('start_time');
-            $table->timestamp('end_time');
+            // unlock window (dateTime avoids MySQL invalid timestamp default errors)
+            $table->dateTime('start_time');
+            $table->dateTime('end_time');
 
             // audit
             $table->timestamps();

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Child;
 use App\Models\ParentUser;
 use Illuminate\Http\Request;
+use App\Services\UnlockSessionService;
 use Illuminate\Support\Facades\Hash;
 
 class ParentPinController extends Controller
@@ -73,15 +74,16 @@ public function pinStatus($parentId)
     ]);
 }
 
-public function unlock(Request $request, $childId)
+public function unlock(Request $request, $childId, UnlockSessionService $unlockSessions)
     {
+        try {
+        
         $request->validate([
             'pin_code' => 'required'
         ]);
         
         $child = Child::findOrFail($childId);
         $parent = ParentUser::findOrFail($child->parent_id);
-
         // PIN validation
         if (!Hash::check($request->pin_code, $parent->parent_pin)) {
             $parent->increment('failed_pin_attempts');
@@ -102,10 +104,16 @@ public function unlock(Request $request, $childId)
             'unlocked_at' => now()
         ]);
 
+        $unlockSessions->start($childId);
+
         return response()->json([
             'success' => true,
             'unlocked' => true,
             'unlockMethod' => 'PARENT_PIN'
         ]);
+            //code...
+        } catch (\Throwable $th) {
+            dd($th);
+        }
     }
 }

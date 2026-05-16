@@ -11,6 +11,7 @@ use App\Models\EmergencyContact;
 use App\Models\ParentUser;
 use App\Models\QuizSession;
 use App\Models\ScreenTimeSetting;
+use App\Services\UsageChartService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -190,106 +191,31 @@ class ChildController extends Controller
         ]);
     }
     
-    public function usageChart(Request $request, $childId)
+    public function usageChart(Request $request, $childId, UsageChartService $usageChart)
     {
-        // Ensure child exists
         Child::where('id', $childId)->firstOrFail();
-    
+
         $type = $request->query('type', 'monthly');
-    
+
         if ($type === 'monthly') {
-            return $this->monthlyUsage($childId, $request);
+            return response()->json($usageChart->monthly(
+                $childId,
+                (int) $request->query('year', now()->year),
+                (int) $request->query('month', now()->month)
+            ));
         }
-    
+
         if ($type === 'yearly') {
-            return $this->yearlyUsage($childId, $request);
+            return response()->json($usageChart->yearly(
+                $childId,
+                (int) $request->query('year', now()->year)
+            ));
         }
-    
+
         return response()->json([
             'success' => false,
-            'message' => 'Invalid type. Use monthly or yearly.'
+            'message' => 'Invalid type. Use monthly or yearly.',
         ], 400);
-    }
-
-    private function monthlyUsage($childId, Request $request)
-    {
-        $year  = $request->query('year', now()->year);
-        $month = $request->query('month', now()->month);
-    
-        $startOfMonth = Carbon::create($year, $month)->startOfMonth();
-        $endOfMonth   = Carbon::create($year, $month)->endOfMonth();
-    
-        $daysInMonth = $startOfMonth->daysInMonth;
-    
-        $sessions = ActiveUnlockSession::select(
-                DB::raw('DAY(start_time) as day'),
-                DB::raw('SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as minutes')
-            )
-            ->where('child_id', $childId)
-            ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
-            ->groupBy('day')
-            ->get()
-            ->keyBy('day');
-    
-        $data = [];
-    
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $minutes = $sessions[$day]->minutes ?? 0;
-    
-            $data[] = [
-                'label' => $day,
-                'hours' => round($minutes / 60, 2)
-            ];
-        }
-    
-        return response()->json([
-            'childId' => $childId,
-            'type' => 'monthly',
-            'year' => (int)$year,
-            'month' => (int)$month,
-            'data' => $data
-        ]);
-    }
-    private function yearlyUsage($childId, Request $request)
-    {
-        $year = $request->query('year', now()->year);
-    
-        $startOfYear = Carbon::create($year)->startOfYear();
-        $endOfYear   = Carbon::create($year)->endOfYear();
-    
-        $sessions = ActiveUnlockSession::select(
-                DB::raw('MONTH(start_time) as month'),
-                DB::raw('SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as minutes')
-            )
-            ->where('child_id', $childId)
-            ->whereBetween('start_time', [$startOfYear, $endOfYear])
-            ->groupBy('month')
-            ->get()
-            ->keyBy('month');
-    
-        $months = [
-            1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
-            5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Aug',
-            9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'
-        ];
-    
-        $data = [];
-    
-        foreach ($months as $num => $label) {
-            $minutes = $sessions[$num]->minutes ?? 0;
-    
-            $data[] = [
-                'label' => $label,
-                'hours' => round($minutes / 60, 2)
-            ];
-        }
-    
-        return response()->json([
-            'childId' => $childId,
-            'type' => 'yearly',
-            'year' => (int)$year,
-            'data' => $data
-        ]);
     }
 
        public function performanceChart(Request $request, $childId)

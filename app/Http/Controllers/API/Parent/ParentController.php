@@ -9,6 +9,7 @@ use App\Models\ScreenTimeSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\ActiveUnlockSession;
+use App\Services\UsageChartService;
 use Carbon\Carbon;
 use App\Models\ParentUser;
 use Illuminate\Support\Facades\DB;
@@ -278,15 +279,14 @@ class ParentController extends Controller
             'start_time' => 'nullable',
             'end_time' => 'nullable',
         ]);
-        $screenTime = ScreenTimeSetting::create([
-            'child_id' => $request->childId,
-            'daily_unlock_count' => $request->dailyUnlockCount,
-            'unlock_duration_minutes' => $request->unlockDurationMinutes,
-            'used_unlocks_today' => 0,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
-            'last_reset_date' => now()->toDateString(), // optional
-        ]);
+        $screenTime = ScreenTimeSetting::updateOrCreate(
+            ['child_id' => $request->childId],
+            [
+                'daily_unlock_count' => $request->dailyUnlockCount,
+                'unlock_duration_minutes' => $request->unlockDurationMinutes,
+                'used_unlocks_today' => 0,
+            ]
+        );
 
         return response()->json([
             'success' => true,
@@ -319,118 +319,42 @@ class ParentController extends Controller
         }
     }
     
-    public function parentUsageChart(Request $request, $parentId)
+    public function parentUsageChart(Request $request, $parentId, UsageChartService $usageChart)
     {
-    $type = $request->query('type', 'monthly');
-    $childId = $request->query('child_id');
+        $type = $request->query('type', 'monthly');
+        $childId = $request->query('child_id') ?? $request->query('childId');
 
-    if (!$childId) {
+        if (!$childId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'child_id is required',
+            ], 400);
+        }
+
+        Child::where('id', $childId)
+            ->where('parent_id', $parentId)
+            ->firstOrFail();
+
+        if ($type === 'monthly') {
+            return response()->json($usageChart->monthly(
+                $childId,
+                (int) $request->query('year', now()->year),
+                (int) $request->query('month', now()->month)
+            ));
+        }
+
+        if ($type === 'yearly') {
+            return response()->json($usageChart->yearly(
+                $childId,
+                (int) $request->query('year', now()->year)
+            ));
+        }
+
         return response()->json([
             'success' => false,
-            'message' => 'child_id is required'
+            'message' => 'Invalid type. Use monthly or yearly.',
         ], 400);
     }
-
-    // Ensure child belongs to parent
-    Child::where('id', $childId)
-        ->where('parent_id', $parentId)
-        ->firstOrFail();
-
-    if ($type === 'monthly') {
-        return $this->parentMonthlyUsage($childId, $request);
-    }
-
-    if ($type === 'yearly') {
-        return $this->parentYearlyUsage($childId, $request);
-    }
-
-    return response()->json([
-        'success' => false,
-        'message' => 'Invalid type. Use monthly or yearly.'
-    ], 400);
-}
-
-    private function parentMonthlyUsage($childId, Request $request)
-    {
-    $year  = $request->query('year', now()->year);
-    $month = $request->query('month', now()->month);
-
-    $start = Carbon::create($year, $month)->startOfMonth();
-    $end   = Carbon::create($year, $month)->endOfMonth();
-
-    $daysInMonth = $start->daysInMonth;
-
-    $sessions = ActiveUnlockSession::select(
-            DB::raw('DAY(start_time) as day'),
-            DB::raw('SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as minutes')
-        )
-        ->where('child_id', $childId)
-        ->whereBetween('start_time', [$start, $end])
-        ->groupBy('day')
-        ->get()
-        ->keyBy('day');
-
-    $data = [];
-
-    for ($day = 1; $day <= $daysInMonth; $day++) {
-        $minutes = $sessions[$day]->minutes ?? 0;
-
-        $data[] = [
-            'label' => $day,
-            'hours' => round($minutes / 60, 2)
-        ];
-    }
-
-    return response()->json([
-        'child_id' => $childId,
-        'type' => 'monthly',
-        'year' => (int)$year,
-        'month' => (int)$month,
-        'data' => $data
-    ]);
-}
-    
-    private function parentYearlyUsage($childId, Request $request)
-    {
-    $year = $request->query('year', now()->year);
-
-    $start = Carbon::create($year)->startOfYear();
-    $end   = Carbon::create($year)->endOfYear();
-
-    $sessions = ActiveUnlockSession::select(
-            DB::raw('MONTH(start_time) as month'),
-            DB::raw('SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as minutes')
-        )
-        ->where('child_id', $childId)
-        ->whereBetween('start_time', [$start, $end])
-        ->groupBy('month')
-        ->get()
-        ->keyBy('month');
-
-    $months = [
-        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
-        5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Aug',
-        9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'
-    ];
-
-    $data = [];
-
-    foreach ($months as $num => $label) {
-        $minutes = $sessions[$num]->minutes ?? 0;
-
-        $data[] = [
-            'label' => $label,
-            'hours' => round($minutes / 60, 2)
-        ];
-    }
-
-    return response()->json([
-        'child_id' => $childId,
-        'type' => 'yearly',
-        'year' => (int)$year,
-        'data' => $data
-    ]);
-}
 
     public function parentPerformanceChart(Request $request, $parentId)
     {
