@@ -148,6 +148,7 @@ class ParentController extends Controller
             ),
             'startTime' => $screenTime->start_time,
             'endTime' => $screenTime->end_time,
+            "used_unlocks_today" => $screenTime->used_unlocks_today,
             'currentSession' => [
                 'isUnlocked' => (bool) $session,
                 'remainingMinutes' => $session
@@ -161,7 +162,6 @@ class ParentController extends Controller
     {
         try{
         $parentId = auth('parent')->id();
-
         Child::where('id', $childId)
             ->where('parent_id', $parentId)
             ->firstOrFail();
@@ -285,6 +285,8 @@ class ParentController extends Controller
                 'daily_unlock_count' => $request->dailyUnlockCount,
                 'unlock_duration_minutes' => $request->unlockDurationMinutes,
                 'used_unlocks_today' => 0,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time
             ]
         );
 

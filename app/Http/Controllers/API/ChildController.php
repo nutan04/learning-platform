@@ -187,6 +187,7 @@ class ChildController extends Controller
                 $screenTime->daily_unlock_count - $screenTime->used_unlocks_today,
                 0
             ),
+                "used_unlocks_today" => $screenTime->used_unlocks_today
             
         ]);
     }
